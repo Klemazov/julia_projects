@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.4
+# v0.20.5
 
 using Markdown
 using InteractiveUtils
@@ -7,7 +7,7 @@ using InteractiveUtils
 # This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
 macro bind(def, element)
     #! format: off
-    quote
+    return quote
         local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
         local el = $(esc(element))
         global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
@@ -58,49 +58,25 @@ md"""
 Для примера посмотрим какая ошибка будет набегать в зависимости от шага для каждого из двух методов расчета производной
 """
 
-# ╔═╡ 00eb0da7-1e0a-4ca7-82ca-f16b57fdfe16
+# ╔═╡ 0d54fa5b-a4fc-4e39-8093-7eebddfdff48
 md"""
-пусть у нас есть функция $f(x) = x^3$. Её производная $f'(x) = 3x^2$
+Пусть у нас есть функция $f(x) = x^3$. Её производная $f'(x) = 3x^2$
 """
-
-# ╔═╡ 0153e9c1-c1b0-4e70-ba23-6f2c5f33826f
-begin
-	f(x) = x^3; # значение функции
-	dfdx(x) = 3x^2; # истинное значение производной
-	dfdxₙ(x, h) = (f(x+h)-f(x-h))/2h; # численное значение производной 
-	
-end;
 
 # ╔═╡ daefec46-6383-49a8-af34-f90134bdf9e7
 md"""
-Посмотрим какая разница будет в значении производной, если мы будем менять шаг $h$
+Посмотрим как меняется значение численно вычисленных производных, если мы будем менять шаг $h$
 
+Для наглядности шаг сделаем равным $\exp(-p)$ **(будем изменять показатель степени $p$)**
 """
 
-# ╔═╡ e5580bfd-fd1f-45bd-bc17-6a2d461e6c2e
+# ╔═╡ 0214a1eb-69ae-4f7a-a821-d4e444a6059d
+power = -1:0.1:40;
+
+# ╔═╡ 1a4dbbc6-4be6-4fa4-abcb-f803d6c285cf
 md"""
-масштабирование шага осуществляется через показатель степени
-
-s = $(@bind s Slider(-0:40, show_value=true))
-
-h = $e^{-s}$
+p = $(@bind p Slider(power, show_value=true))
 """
-
-# ╔═╡ 406c0d8e-7763-424c-856f-c861dc9c2b43
-begin
-	x = -2:0.1:2;
-	plot(x,f.(x), label = L"f(x) = x^3-x^2");
-	plot!(x,dfdx.(x), label = L"f'(x) = 3x^2-2x");
-	plot!(x,@.dfdxₙ(x,exp(-s)));
-	ylims!(-2,2)
-	
-end
-
-# ╔═╡ a34a1cee-086c-4864-ad74-cf30b6b2d30d
-begin
-	h(s) = exp(-s)
-	println("h = $(h(s))")
-end
 
 # ╔═╡ 8d47aa37-3d40-497f-a953-164290b24c46
 md"""
@@ -164,6 +140,80 @@ $f(a+b\varepsilon) = a^3+3a^2(b\varepsilon)$
 md"""
 Если мы скажем программе правила для арифметики данных чисел, то мы сможем при вычислении функций сразу получать пару чисел: значение функции и производную 
 """
+
+# ╔═╡ bcfbf030-ea5a-4e16-a298-b30b8b57f358
+md"""
+*Определим дуальное число как пару чисел (реальную часть и дуальную)*
+"""
+
+# ╔═╡ 47cfcdc0-bfd3-4c90-a98e-5852bed1a9e9
+struct Dual{T}
+    val::T   # value
+    der::T  # derivative
+end
+
+# ╔═╡ 8c3a54e4-29f3-4c85-966f-4be8c6ac5d09
+begin
+	## Определяем операции сложения
+	Base.:+(f::Dual, g::Dual) = Dual(f.val + g.val, f.der + g.der)
+	Base.:+(f::Dual, α::Number) = Dual(f.val + α, f.der)
+	Base.:+(α::Number, f::Dual) = f + α
+	
+	## Операция вычитания
+	
+	Base.:-(f::Dual, g::Dual) = Dual(f.val - g.val, f.der - g.der)
+	
+	# Операция умножения
+	Base.:*(f::Dual, g::Dual) = Dual(f.val*g.val, f.der*g.val + f.val*g.der)
+	Base.:*(α::Number, f::Dual) = Dual(f.val * α, f.der * α)
+	Base.:*(f::Dual, α::Number) = α * f
+	
+	# Деление
+	Base.:/(f::Dual, g::Dual) = Dual(f.val/g.val, (f.der*g.val - f.val*g.der)/(g.val^2))
+	Base.:/(α::Number, f::Dual) = Dual(α/f.val, -α*f.der/f.val^2)
+	Base.:/(f::Dual, α::Number) = f * inv(α) # Dual(f.val/α, f.der * (1/α))
+
+	## Степень
+	Base.:^(f::Dual, n::Integer) = Base.power_by_squaring(f, n)  # use repeated squaring for integer powers
+end
+
+# ╔═╡ 0153e9c1-c1b0-4e70-ba23-6f2c5f33826f
+begin
+	f₁(x) = x^3; # Функция
+	f′(x) = 3x^2; # Производная (истинная)
+	f′ₙ(f,x,h) = @.(f(x+h)-f(x))/h; # Численно вычисленная производная
+	f′ₙ₁(f,x,h) = @.(f(x+h)-f(x-h))/2h; # Численно вычисленная производная центральной разностью
+end
+
+# ╔═╡ c381887a-88f3-4979-ace5-ff40db2d018a
+h(power) = exp(-power);
+
+# ╔═╡ bd793d09-8288-4baf-8ece-c4353bef387a
+md"""
+h = $(h(p))
+"""
+
+# ╔═╡ 71068f7c-f89f-4db9-81ca-0566059b493e
+begin
+	x = -5:0.1:5;
+	plot(x,f′.(x), label = L"f'(x) = 3x^2", legend=:bottomleft)
+	plot!(x,f′ₙ(f₁,x,h(p)), label = L"f'(x_0) = \frac{f(x_0+h)-f(x_0)}{h}")
+	plot!(x,f′ₙ₁(f₁,x,h(p)), label = L"f'(x_0) = \frac{f(x_0+h)-f(x_0-h)}{2h}")
+	ylims!(-5,10)
+	xlims!(-2.5,2.5)
+end
+
+# ╔═╡ 2bf7912e-f3c2-4a61-ad7e-a2023b6d7316
+md"""
+Теперь мы можем совершать базовые арифметические операции над дуальными числами 
+"""
+
+# ╔═╡ 96c182a5-5de4-4707-87ab-5e66b3232acd
+begin
+	fd = Dual(3, 1)
+	gd = Dual(5, 1)
+	(fd*fd).der ## x^2 -> 2x | при x=3 получим 2*3 =6
+end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1349,21 +1399,28 @@ version = "1.4.1+2"
 """
 
 # ╔═╡ Cell order:
-# ╟─778d6290-0f20-11f0-1216-dfcc2ef9b7ef
+# ╠═778d6290-0f20-11f0-1216-dfcc2ef9b7ef
 # ╟─accddf54-2f9d-4cb3-a1e8-4830208d079d
 # ╟─c78656ff-3b8d-4ab0-939c-8c35184f8383
 # ╟─d81ba2a0-d6cc-4d66-a344-493a746b4004
 # ╟─cdb458e7-d1c1-47be-b7f9-82cabf837367
-# ╟─00eb0da7-1e0a-4ca7-82ca-f16b57fdfe16
-# ╟─0153e9c1-c1b0-4e70-ba23-6f2c5f33826f
-# ╟─406c0d8e-7763-424c-856f-c861dc9c2b43
+# ╟─0d54fa5b-a4fc-4e39-8093-7eebddfdff48
+# ╠═0153e9c1-c1b0-4e70-ba23-6f2c5f33826f
 # ╟─daefec46-6383-49a8-af34-f90134bdf9e7
-# ╟─e5580bfd-fd1f-45bd-bc17-6a2d461e6c2e
-# ╟─a34a1cee-086c-4864-ad74-cf30b6b2d30d
+# ╟─c381887a-88f3-4979-ace5-ff40db2d018a
+# ╟─0214a1eb-69ae-4f7a-a821-d4e444a6059d
+# ╟─1a4dbbc6-4be6-4fa4-abcb-f803d6c285cf
+# ╟─bd793d09-8288-4baf-8ece-c4353bef387a
+# ╟─71068f7c-f89f-4db9-81ca-0566059b493e
 # ╟─8d47aa37-3d40-497f-a953-164290b24c46
 # ╟─1c8240c5-e9d6-4a54-aa6e-48ded54bad8a
 # ╟─c23de12f-bd71-4021-9dad-d7d0d478ab3d
 # ╟─606e15cd-7688-4182-85e1-1918e65de41f
 # ╟─e47e1388-fe4f-460c-a124-b29b294a55c2
+# ╟─bcfbf030-ea5a-4e16-a298-b30b8b57f358
+# ╠═47cfcdc0-bfd3-4c90-a98e-5852bed1a9e9
+# ╠═8c3a54e4-29f3-4c85-966f-4be8c6ac5d09
+# ╟─2bf7912e-f3c2-4a61-ad7e-a2023b6d7316
+# ╠═96c182a5-5de4-4707-87ab-5e66b3232acd
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
