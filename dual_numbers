@@ -26,6 +26,9 @@ using LaTeXStrings;
 gr()   # set the backend to GR
 end
 
+# ╔═╡ 07eff3da-3c98-4f11-8a87-99f4b0170b29
+using StaticArrays
+
 # ╔═╡ accddf54-2f9d-4cb3-a1e8-4830208d079d
 md"""
 # Автоматическое дифференцирование
@@ -44,7 +47,7 @@ begin
 end
 
 # ╔═╡ 7e1546f0-f4ae-4360-9561-2ca6de5aa906
-@bind sl Slider(1.:1000000, show_value=true) 
+@bind sl Slider(0.0000001:0.001:1000, show_value=true) 
 
 # ╔═╡ 4569d4a5-db4a-4045-9713-607027a4015f
 eps(sl)
@@ -200,6 +203,136 @@ begin
 	Base.:^(f::Dual, n::Integer) = Base.power_by_squaring(f, n)  # use repeated squaring for integer powers
 end
 
+# ╔═╡ 2bf7912e-f3c2-4a61-ad7e-a2023b6d7316
+md"""
+Теперь мы можем совершать базовые арифметические операции над дуальными числами 
+"""
+
+# ╔═╡ 4c4a4075-7969-4a5b-ba2c-dfc15ea9d8f7
+md"""
+Как быть со всякими синусами косинусами и прочими функциями?
+
+есть два пути:
+- залезть глубоко в язык и переопределить базовые функции 
+- захардкодить известные функции 
+"""
+
+# ╔═╡ e29595bd-4d2a-4fec-a61f-c733169f50af
+md"""
+*Попробуем реализовать алгоритм для нахождения корня*
+
+$x_{i+1} = \frac{1}{2}(x_n+\frac{2}{x_n})$
+
+$f′(\sqrt{x}) = \frac{1}{2\sqrt{x}}$
+
+$\sqrt(2) = 1.414...$
+
+$f′(\sqrt{2}) = 0.3535...$
+
+"""
+
+# ╔═╡ 36ff75ed-af59-4c7e-818d-b3b5981fe2c1
+md"""
+### Более высокие размерности
+"""
+
+# ╔═╡ d8d70128-f61d-48aa-9954-55071f71c4e5
+md"""
+Перейдем к размерности повыше 
+
+Рассмотрим функцию типа $f:\mathbb{R}^2 \rightarrow \mathbb{R}$ 
+
+То есть это функции которые на вход берут 2 аргумента, а на выходе отдают один 
+
+Например, рассмотрим функцию $f(x,y) = x^2+xy$
+"""
+
+# ╔═╡ 1676ed74-45a4-4ff9-88b6-b86459d4d29a
+md"""
+Посчитаем частные производные с помощью дуальных чисел
+
+$f(x,y) = x^2+xy$
+
+$\frac{∂f}{∂x} = 2x+y$ 
+
+$\frac{∂f}{∂y} = x$
+"""
+
+# ╔═╡ 87a30e49-3ea8-442e-8333-9130d257922c
+# Сделаем хитрость №1
+derivative(f, x) = f(Dual(x, one(x))).der ## так будет удобнее сразу выделять производные
+
+# ╔═╡ 4bbca898-de86-442e-a07e-4044cb893c9a
+md"""
+Запишем наши производные в столбик и получим 
+
+$$\begin{pmatrix} \frac{∂f}{∂x}  \\  \frac{∂f}{∂y} \end{pmatrix} = ∇f$$ 
+
+"""
+
+# ╔═╡ bae6f366-701f-4fbb-b4b0-1519f1f59d78
+md"""
+Необходимо сделать n вычислений для нахождения градиента
+"""
+
+# ╔═╡ b947314d-c3a3-4014-b8d3-ddd7c375a729
+md"""
+### Высокоразмерные дуальные числа
+"""
+
+# ╔═╡ 4cf68816-bdcb-46a4-b18e-c8db8df9b619
+md"""
+То как я это представляю
+
+допустим $x → a+bε$
+
+Если мы хотим вычислять градиент от функции двух переменных, то можно переписать следующим образом
+
+$x → x+\bar{\varepsilon} → a + \begin{bmatrix} \varepsilon_1\\ \varepsilon_2 \end{bmatrix}$
+
+А еще можно записать вот так
+
+$x → a + \begin{bmatrix} 1\\ 0 \end{bmatrix}$
+
+$y → b + \begin{bmatrix} 0\\ 1 \end{bmatrix}$
+
+Также $\varepsilon^2 = \varepsilon_i \varepsilon_j =0$
+"""
+
+
+# ╔═╡ bb7ca78a-8842-495e-8f67-cc4da75f1a0a
+md"""
+Функции от мультидуальных чисел будут давать следующую вещь
+
+$f(a+\varepsilon) = f(a) + ∇f(a)ε$
+
+только теперь $a ∈ \mathbb{R^n}$, а дуальная часть дает нам градиент скалярной функции
+"""
+
+# ╔═╡ ad525726-9610-42cd-aef5-6521964699d1
+md"""
+Для создания *мультидуальных чисел* будем использовать библиотеку ```StaticArrays```
+"""
+
+# ╔═╡ 06f51a1c-8a20-4e7a-a403-cb8e6a0eadad
+## определим структуру 
+struct MultiDual{N,T}
+    val::T
+    derivs::SVector{N,T}
+end
+
+# ╔═╡ 9cd7f6ff-72c8-432c-bcd9-2b9696fa7333
+begin
+	import Base: +, *
+function +(f::MultiDual{N,T}, g::MultiDual{N,T}) where {N,T}
+    return MultiDual{N,T}(f.val + g.val, f.derivs + g.derivs)
+end
+
+function *(f::MultiDual{N,T}, g::MultiDual{N,T}) where {N,T}
+    return MultiDual{N,T}(f.val * g.val, f.val .* g.derivs + g.val .* f.derivs)
+end
+end
+
 # ╔═╡ fe5980a1-a1d4-4865-969e-adafea7911c0
 (2+eps())-eps()
 
@@ -214,25 +347,11 @@ begin
 	f′ₙ₁(f,x,h) = @.(f(x+h)-f(x-h))/2h; # Численно вычисленная производная центральной разностью
 end
 
-# ╔═╡ 2bf7912e-f3c2-4a61-ad7e-a2023b6d7316
-md"""
-Теперь мы можем совершать базовые арифметические операции над дуальными числами 
-"""
-
 # ╔═╡ 96c182a5-5de4-4707-87ab-5e66b3232acd
 begin
 	fd = Dual(3, 1)
 	(fd*fd).der ## x^2 -> 2x | при x=3 получим 2*3 =6
 end
-
-# ╔═╡ 4c4a4075-7969-4a5b-ba2c-dfc15ea9d8f7
-md"""
-Как быть со всякими синусами косинусами и прочими функциями?
-
-есть два пути:
-- залезть глубоко в язык и переопределить базовые функции 
-- захардкодить известные функции 
-"""
 
 # ╔═╡ 541a4751-cd45-4b7c-8ee9-a42beaad00dd
 begin
@@ -261,20 +380,6 @@ begin
 	xlims!(-2.5,2.5)
 end
 
-# ╔═╡ e29595bd-4d2a-4fec-a61f-c733169f50af
-md"""
-*Попробуем реализовать алгоритм для нахождения корня*
-
-$x_{i+1} = \frac{1}{2}(x_n+\frac{2}{x_n})$
-
-$f′(\sqrt{x}) = \frac{1}{2\sqrt{x}}$
-
-$\sqrt(2) = 1.414...$
-
-$f′(\sqrt{2}) = 0.3535...$
-
-"""
-
 # ╔═╡ 561bcc31-80cc-4145-8137-f7ca7f19c626
 begin
 	function newtons(x)
@@ -289,46 +394,15 @@ begin
 	@show newtons(Dual(2.0,1.0))
 end
 
-# ╔═╡ 36ff75ed-af59-4c7e-818d-b3b5981fe2c1
-md"""
-### Более высокие размерности
-"""
-
-# ╔═╡ d8d70128-f61d-48aa-9954-55071f71c4e5
-md"""
-Перейдем к размерности повыше 
-
-Рассмотрим функцию типа $f:\mathbb{R}^2 \rightarrow \mathbb{R}$ 
-
-То есть это функции которые на вход берут 2 аргумента, а на выходе отдают один 
-
-Например, рассмотрим функцию $f(x,y) = x^2+xy$
-"""
-
 # ╔═╡ 827ee95d-c405-4dc0-8345-c0d17aab4ac0
 fquad(x, y) = x^2 + x*y
-
-# ╔═╡ 1676ed74-45a4-4ff9-88b6-b86459d4d29a
-md"""
-Посчитаем частные производные с помощью дуальных чисел
-
-$f(x,y) = x^2+xy$
-
-$\frac{∂f}{∂x} = 2x+y$ 
-
-$\frac{∂f}{∂y} = x$
-"""
-
-# ╔═╡ 87a30e49-3ea8-442e-8333-9130d257922c
-# Сделаем хитрость №1
-derivative(f, x) = f(Dual(x, one(x))).der ## так будет удобнее сразу выделять производные
 
 # ╔═╡ a9448aec-3da5-493d-a8fa-b7f4de85055b
 begin
 	## Сделаем хитрость №2
 	a, b = 3.0, 4.0;
 	fquad_1(x) = fquad(x, b);
-	derivative(fquad_1, a)
+	derivative(fquad_1, a) ## ∂f/∂x  = 2x+y = 2×3+4 = 10
 end
 
 # ╔═╡ 771b61e1-9df0-433f-9aba-f453e3613555
@@ -342,40 +416,45 @@ begin
 	derivative(fquad_2, b) #∂f/∂y  = x = 3
 end
 
-# ╔═╡ 4bbca898-de86-442e-a07e-4044cb893c9a
+# ╔═╡ 46466f64-32e5-411d-bed3-f615dfb53a54
 md"""
-Запишем наши производные в столбик и получим 
+Рассмотрим пример. У нас есть функция $g(x,y) = x^2y+x+y$
 
-$$\begin{pmatrix} \frac{∂f}{∂x}  \\  \frac{∂f}{∂y} \end{pmatrix} = ∇f$$ 
+$∇g(x,y) =\begin{pmatrix}  \frac{∂g}{∂x}  \\  \frac{∂g}{∂y} \end{pmatrix} = \begin{pmatrix}  2xy+1\\x^2+1 \end{pmatrix}$
 
+допустим, что x = 1, y = 2. Тогда:
+
+$\nabla g(x = 1,y = 2) = \begin{pmatrix} 5 \\ 2 \end{pmatrix}$
 """
 
-# ╔═╡ bae6f366-701f-4fbb-b4b0-1519f1f59d78
+# ╔═╡ 8adf876e-e6e6-46a7-b34d-d57136f88a6b
+gcubic(x, y) = x*x*y + x + y
+
+# ╔═╡ a49d0438-9829-4274-8b1b-ecfcb1e241b4
+begin
+	(aa, bb) = (1.0, 2.0)
+	xx = MultiDual(aa, SVector(1.0, 0.0))
+	yy = MultiDual(bb, SVector(0.0, 1.0))
+	gcubic(xx, yy)
+end
+
+# ╔═╡ 7127fb59-0724-4106-944f-40b0fc73ff51
 md"""
-Необходимо сделать n вычислений для нахождения градиента
+Также мы можем вычислить Якобиан $J$ функции $\mathbb{R^n} \rightarrow \mathbb{R^m}$
 """
 
-# ╔═╡ b947314d-c3a3-4014-b8d3-ddd7c375a729
+# ╔═╡ c765a24a-7d00-4667-9d92-2576cbf1e88d
 md"""
-### Высокоразмерные дуальные числа
+$\mathbf{f(x,y)} = (x^2+y^2, x+y) = \begin{pmatrix} x^2+y^2 \\ x+y \end{pmatrix}$
 """
 
-# ╔═╡ 4cf68816-bdcb-46a4-b18e-c8db8df9b619
-md"""
-То как я это представляю
-
-допустим $x → a+bε$
-
-Если мы хотим вычислять градиент от функции двух переменных, то можно переписать следующим образом
-
-$x → a + \begin{bmatrix} \varepsilon_1\\ \varepsilon_2 \end{bmatrix}$
-
-А еще можно записать вот так
-
-$x → a + \begin{bmatrix} 1\\ 0 \end{bmatrix}$
-
-$y → b + \begin{bmatrix} 0\\ 1 \end{bmatrix}$
-"""
+# ╔═╡ 07763895-01ab-4efa-b8af-be11dd0a6785
+begin
+	fsvec(x, y) = SVector(x*x + y*y , x + y)
+	
+	println(fsvec(xx, yy)[1].derivs)
+	println(fsvec(xx, yy)[2].derivs)
+end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -383,11 +462,13 @@ PLUTO_PROJECT_TOML_CONTENTS = """
 LaTeXStrings = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
 LaTeXStrings = "~1.4.0"
 Plots = "~1.40.11"
 PlutoUI = "~0.7.61"
+StaticArrays = "~1.9.12"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -396,7 +477,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.4"
 manifest_format = "2.0"
-project_hash = "53fe51af9e53e0fdae1380d120ce06081c5c0583"
+project_hash = "797e80b58ed266b6b27c5fa95ed135481200f14c"
 
 [[deps.AbstractPlutoDingetjes]]
 deps = ["Pkg"]
@@ -1156,6 +1237,25 @@ git-tree-sha1 = "83e6cce8324d49dfaf9ef059227f91ed4441a8e5"
 uuid = "860ef19b-820b-49d6-a774-d7a799459cd3"
 version = "1.0.2"
 
+[[deps.StaticArrays]]
+deps = ["LinearAlgebra", "PrecompileTools", "Random", "StaticArraysCore"]
+git-tree-sha1 = "e3be13f448a43610f978d29b7adf78c76022467a"
+uuid = "90137ffa-7385-5640-81b9-e52037218182"
+version = "1.9.12"
+
+    [deps.StaticArrays.extensions]
+    StaticArraysChainRulesCoreExt = "ChainRulesCore"
+    StaticArraysStatisticsExt = "Statistics"
+
+    [deps.StaticArrays.weakdeps]
+    ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
+    Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
+
+[[deps.StaticArraysCore]]
+git-tree-sha1 = "192954ef1208c7019899fbf8049e717f92959682"
+uuid = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
+version = "1.4.3"
+
 [[deps.Statistics]]
 deps = ["LinearAlgebra"]
 git-tree-sha1 = "ae3bb1eb3bba077cd276bc5cfc337cc65c3075c0"
@@ -1603,9 +1703,20 @@ version = "1.4.1+2"
 # ╠═a9448aec-3da5-493d-a8fa-b7f4de85055b
 # ╠═771b61e1-9df0-433f-9aba-f453e3613555
 # ╠═33c1762c-a615-4883-95ce-57b98beb5c8e
-# ╟─4bbca898-de86-442e-a07e-4044cb893c9a
+# ╠═4bbca898-de86-442e-a07e-4044cb893c9a
 # ╠═bae6f366-701f-4fbb-b4b0-1519f1f59d78
 # ╟─b947314d-c3a3-4014-b8d3-ddd7c375a729
 # ╟─4cf68816-bdcb-46a4-b18e-c8db8df9b619
+# ╠═bb7ca78a-8842-495e-8f67-cc4da75f1a0a
+# ╟─ad525726-9610-42cd-aef5-6521964699d1
+# ╠═07eff3da-3c98-4f11-8a87-99f4b0170b29
+# ╠═06f51a1c-8a20-4e7a-a403-cb8e6a0eadad
+# ╠═9cd7f6ff-72c8-432c-bcd9-2b9696fa7333
+# ╠═46466f64-32e5-411d-bed3-f615dfb53a54
+# ╠═8adf876e-e6e6-46a7-b34d-d57136f88a6b
+# ╠═a49d0438-9829-4274-8b1b-ecfcb1e241b4
+# ╠═7127fb59-0724-4106-944f-40b0fc73ff51
+# ╠═c765a24a-7d00-4667-9d92-2576cbf1e88d
+# ╠═07763895-01ab-4efa-b8af-be11dd0a6785
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
