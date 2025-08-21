@@ -16,194 +16,93 @@ macro bind(def, element)
     #! format: on
 end
 
-# ╔═╡ 9a17a4a0-7a92-11f0-2c7b-395368036590
-using Plots, PlutoUI;
+# ╔═╡ 76970efe-7c29-11f0-0c13-710a6095a5e1
+using Plots,DifferentialEquations, PlutoUI;
 
-# ╔═╡ ae02dd6a-0396-46a5-a240-c5949c944047
-using DifferentialEquations;
-
-# ╔═╡ ef49cb3d-fd66-4c26-95ea-afa5a57ba127
+# ╔═╡ 9cd0d750-738a-49d7-a3b4-b62eb421d036
 plotly()
 
-# ╔═╡ ef488206-8a02-4683-9792-a6ff7349fe40
+# ╔═╡ 48f9c201-840d-4671-b743-affcbd013b05
 md"""
-# Метод Эйлера
+# База по кинетике
 
-Пусть задана задача Коши:
+Основное уравнение кинетики:
 
-$\frac{dy}{dx} = f(x,y)$
+$\frac{d\alpha}{dt} = k(T)\cdot f(\alpha)$
 
-$y(x_0) = y_0$
+В свою очередь 
 
-Функция f определена на некоторой области $D \in \mathbb{R}^2$. Решение ищется на полуинтервале $(x_0,b]$. На этом промежутке введем узлы $x_0<x_1<...<x_n\le b$. Приближенное решение в узлах $x_i$, которое обозначим через $y_i$, определяется по формуле:
-
-$y_i = y_{i-1}+(x_i-x_{i-1})f(x_{i-1},y_{i-1}), i = 1,2,3,...,n$
+$k(T) = A \cdot e^{-E_a/RT}$
 """
 
-# ╔═╡ 4151ca8c-48a0-46f4-8b15-db3e8e6816f2
-# Запишем алгоритм 
-begin
-	function Euler1(h, x0, y0, f, x_end)
-		x = collect(x0:h:x_end);
-		n = length(x);
-		y = zeros(n);
-		y[1] = y0;
-		for i = 1:n-1
-		y[i+1] +=y[i]+h*f(x[i],y[i]);
-		end
-		return x,y
-	end
-end 
-
-# ╔═╡ 596ecc88-6172-4859-b0f9-f0c5e6117edb
+# ╔═╡ 2b14fae7-76b0-42bf-bcb6-be70fb42acaa
 md"""
-## Модифицированный метод Эйлера
+## Реакция n-ого порядка
 
-$y_i = y_{i-1}+h\frac{f(x_{i-1},y_{i-1})+f(x_i,y_i)}{2}$
-
-Проблема в том, что мы не знаем $f(x_i,y_i)$, а именно $y_i$
-
-Найдем методом Эйлера 
-
-$y_i= y_{i-1}+hf(x_{i-1},y_{i-1})$
-
-Модифицированный метод Эйлера с пересчетом имеет второй порядок точности, однако для его реализации необходимо как минимум дважды вычислять $f ( x , y )$.
-
-Метод Эйлера с пересчетом представляет собой разновидность *методов Рунге — Кутты* (предиктор-корректор). 
-
+$f(\alpha) = (1-\alpha)^n$
 """
 
-# ╔═╡ 0396c638-49a8-4975-9fb0-a64b11860388
-# модифицированный метод Эйлера
-begin
-	function Euler2(h, x0, y0, f, x_end)
-		x = collect(x0:h:x_end);
-		n = length(x);
-		y = zeros(n);
-		ỹ = zeros(n);
-		y[1] = y0;
-		for i = 1:n-1
-		ỹ[i+1] +=y[i]+h*f(x[i],y[i]);
-		y[i+1] +=y[i]+0.5h * (f(x[i],y[i])+f(x[i+1],ỹ[i+1]));
-		end
-		return x,y
-	end
-end
-
-# ╔═╡ e542cede-c892-4224-986e-aa0d5c42ee76
+# ╔═╡ 1d5d0ccd-14c5-4ec2-a41b-adc71cb84993
 md"""
-# Метод Рунге-Кутты
+Попробуем решить диффуру
 
-На самом деле это не один метод, а целый класс численных методов решения задачи Коши для ODE и их систем.
-
-## Классический метод Рунге-Кутты четвертого порядка
-
-Рассмотрим задачу Коши для системы обыкновенных дифференциальных уравнений первого порядка 
-
-$\mathbf{y}, \mathbf{f},\mathbf{k} \in \mathbb{R}^n \text{ а }x,h \in \mathbb{R}^1$
-
-$\mathbf{y}\prime = \mathbf{f}(x,\mathbf{y}), \mathbf{y}(x_0) = \mathbf{y_0}$
-
-Приближенное значение в последующих точках вычисляется по итерационной формуле:
-
-$\mathbf{y}\prime_{n+1} = \mathbf{y}_n+\frac{h}{6}(\mathbf{k}_1+2\mathbf{k}_2+2\mathbf{k}_3+\mathbf{k}_4)$
-
-$\mathbf{k}_1 = \mathbf{f}(x_n,\mathbf{y}_n)$
-
-$\mathbf{k}_2 = \mathbf{f}(x_n+\frac{h}{2},\mathbf{y}_n+\frac{h}{2}\mathbf{k}_1)$
-
-$\mathbf{k}_3 = \mathbf{f}(x_n+\frac{h}{2},\mathbf{y}_n+\frac{h}{2}\mathbf{k}_2)$
-
-$\mathbf{k}_4 = \mathbf{f}(x_n+h,\mathbf{y}_n+h)\mathbf{k}_3$
+$\frac{d \alpha}{dt} = A \cdot e^{-E_a/RT}\cdot (1-\alpha)^n$
 """
 
-# ╔═╡ 577ae42d-2871-44d4-bd60-d674fdb694fb
-# реализация алгоритма Рунге - Кутты
-begin
-	function RK4(h,x0,y0,f, x_end)
-		x = collect(x0:h:x_end);
-		n = length(x);
-		y = zeros(n);
-		y[1] = y0;
-
-		for i = 1:n-1
-		k1 = f(x[i],y[i]);
-		k2 = f(x[i]+0.5*h,y[i]+0.5*h*k1);
-		k3 = f(x[i]+0.5*h,y[i]+0.5*h*k2);
-		k4 = f(x[i]+h,y[i]+h*k3);
-		
-		y[i+1] = y[i]+h/6.0*(k1+2*k2+2*k3+k4);
-		end
-		return x,y
-	end
+# ╔═╡ ad7eef36-f195-4aea-bd12-3cb6f5d135ca
+function nth_order(u,p,t)
+	A,Eₐ,n = p;
+	R = 8.31;
+	T = t
+	A*exp(-Eₐ/(R*10*T))*(1-u)^n
 end
 
-# ╔═╡ 2888d78e-e021-4789-87da-07be5027a487
-f(x,y) = -y; # функция для которой ищется решение вида dy/dx = f(x,y)
-
-# ╔═╡ 3f9c3a67-6b03-4a2b-912b-857a28d68b28
+# ╔═╡ 52332c49-e99a-4438-9044-f59aaf4ea249
 md"""
-шаг $h$ = $(@bind h Slider(0.0001:0.001:1; default=0.1, show_value=true))
+## Пример с автокатализом
 
+Уравнение:
 
-
-начальное значение $y(x_0)$ = $(@bind y0 Slider(-5:0.1:5; default=1, show_value=true))
-
-конечный диапазон $x$ = $(@bind x_end Slider(1:1:20; default=10, show_value=true))
+$\frac{d\alpha}{dt} = Ae^{-E_a/RT}\cdot(1-\alpha)\alpha$
 """
 
-# ╔═╡ 19f9713c-9505-4dcb-b58d-d5b5615b504b
-begin 
-x0 = 0; # начальное значение x
-# x_end = 10;
-# y0 = 1; # y(x0)
-n = 200; # число итераций, соответствует конечному значению x
-# h = 0.01; # шаг
-x,y = Euler1(h,x0,y0,f,x_end);
+# ╔═╡ aff6c615-316d-4f5c-b3d3-24844f93e419
+function prout_tompkins(u,p,t)
+	A,Eₐ,n = p;
+	R = 8.31;
+	T = t;
+	A*exp(-Eₐ/(R*10*T))*(1-u)*u
 end
 
-
-# ╔═╡ 4ff53943-6187-4138-b91b-3640717a1dc7
-begin
-plot(x,y, ylims = (-1,2), linestyle = :dot)
-scatter!([x[1]], [y[1]], alpha = 0.8)
-end
-
-# ╔═╡ 5326e8ad-2be4-450c-84f0-803c8b6802cc
-begin
-	x1,y1 = Euler1(h, x0, y0, f, x_end);
-	x2,y2 = Euler2(h, x0, y0, f, x_end);
-	plot(x1,y1, label = "классический метод Эйлера")
-	plot!(x2,y2, label = "модифицированный метод Эйлера")
-	plot!(x1, exp.(x1), label = "true")
-end
-
-# ╔═╡ a7cd4e01-1b1e-454c-afe2-e940431e0505
-begin
-	xr, yr = RK4(h,x0,y0,f, x_end);
-	plot(xr,yr, label = "метод Рунге-Кутты");
-	plot!(x1,y1, label = "классический метод Эйлера");
-	plot!(x2,y2, label = "модифицированный метод Эйлера");
-	plot!(x1, exp.(x1), label = "решение уравнения dy/dx=y")
-end
-
-# ╔═╡ bee70811-328a-4196-8c89-7cc81a8ab562
+# ╔═╡ 9dbf8b60-211d-40cb-acee-178f47ab2a2e
 md"""
-# Готовые решения
-
-## Использование готовой библиотеки ```DifferentialEquations```
-
-## Решение скалярных уравнений
-
-$\frac{du}{dt} = f(u,p,t)$
-
-на интервале $t \in[0,1]$ где $f(u,p,t) = \alpha u$
-
+A = $(@bind A Slider(1:0.1:30; default=1, show_value=true))
+Ea = $(@bind Eₐ Slider(1:0.1:200; default=1, show_value=true))
+n = $(@bind n Slider(1:0.1:10; default=1, show_value=true))
 """
 
-# ╔═╡ 9228c34e-09d5-494d-b91c-7e6311e3d5aa
+# ╔═╡ 04bd578a-3bcd-4206-9fde-6a29284232af
 begin
-	
+	u0 = 1e-3;
+	tspan = (0.0 , 10.0);
+	p = [A, Eₐ,n];
+	prob = ODEProblem(nth_order, u0, tspan, p);
+	sol_nth = solve(prob);
+end
+
+# ╔═╡ 7824e0de-b205-4198-9116-961ae851dfd7
+plot(sol_nth, ylims = (0,1))
+
+# ╔═╡ b5fda7f1-8a2b-4735-8f0e-d46ed49db153
+begin
+	prob_pt = ODEProblem(prout_tompkins, u0, tspan, p);
+	sol_pt = solve(prob_pt);
+end
+
+# ╔═╡ b0404d61-6bc2-4bdd-90e6-2a2b26c07298
+begin
+plot(sol_nth, ylims = (0,1), label = "n-th")
+plot!(sol_pt, ylims = (0,1), label = "pt")
 end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
@@ -216,7 +115,7 @@ PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 [compat]
 DifferentialEquations = "~7.16.1"
 Plots = "~1.40.13"
-PlutoUI = "~0.7.61"
+PlutoUI = "~0.7.23"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -225,7 +124,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.4"
 manifest_format = "2.0"
-project_hash = "e5cf8a9c6c97a996c9ac7c23182e813f8f52f02e"
+project_hash = "211b6907e203f155efab8fa860305868fb743ffa"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "e2478490447631aedba0823d4d7a80b2cc8cdb32"
@@ -487,15 +386,19 @@ version = "3.29.0"
 
 [[deps.ColorTypes]]
 deps = ["FixedPointNumbers", "Random"]
-git-tree-sha1 = "b10d0b65641d57b8b4d5e234446582de5047050d"
+git-tree-sha1 = "67e11ee83a43eb71ddc950302c53bf33f0690dfe"
 uuid = "3da002f7-5984-5a60-b8a6-cbb66c0b333f"
-version = "0.11.5"
+version = "0.12.1"
+weakdeps = ["StyledStrings"]
+
+    [deps.ColorTypes.extensions]
+    StyledStringsExt = "StyledStrings"
 
 [[deps.ColorVectorSpace]]
 deps = ["ColorTypes", "FixedPointNumbers", "LinearAlgebra", "Requires", "Statistics", "TensorCore"]
-git-tree-sha1 = "a1f44953f2382ebb937d60dafbe2deea4bd23249"
+git-tree-sha1 = "8b3b6f87ce8f65a2b4f857528fd8d70086cd72b1"
 uuid = "c3611d14-8923-5661-9e6a-0046d554d3a4"
-version = "0.10.0"
+version = "0.11.0"
 weakdeps = ["SpecialFunctions"]
 
     [deps.ColorVectorSpace.extensions]
@@ -1076,9 +979,9 @@ version = "0.3.28"
 
 [[deps.Hyperscript]]
 deps = ["Test"]
-git-tree-sha1 = "179267cfa5e712760cd43dcae385d7ea90cc25a4"
+git-tree-sha1 = "8d511d5b81240fc8e6802386302675bdf47737b9"
 uuid = "47d2ed2b-36de-50cf-bf87-49c2cf4b8b91"
-version = "0.0.5"
+version = "0.0.4"
 
 [[deps.HypertextLiteral]]
 deps = ["Tricks"]
@@ -1408,11 +1311,6 @@ version = "1.11.0"
 deps = ["Dates", "Logging"]
 git-tree-sha1 = "f02b56007b064fbfddb4c9cd60161b6dd0f40df3"
 uuid = "e6f89c97-d47a-5376-807f-9c37f3926c36"
-version = "1.1.0"
-
-[[deps.MIMEs]]
-git-tree-sha1 = "c64d943587f7187e751162b3b84445bbbd79f691"
-uuid = "6c6e2e6c-3030-632d-7369-2d6c69616d65"
 version = "1.1.0"
 
 [[deps.MKL_jll]]
@@ -1923,10 +1821,10 @@ version = "1.40.13"
     Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
 [[deps.PlutoUI]]
-deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "FixedPointNumbers", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "MIMEs", "Markdown", "Random", "Reexport", "URIs", "UUIDs"]
-git-tree-sha1 = "7e71a55b87222942f0f9337be62e26b1f103d3e4"
+deps = ["AbstractPlutoDingetjes", "Base64", "Dates", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "Markdown", "Random", "Reexport", "UUIDs"]
+git-tree-sha1 = "5152abbdab6488d5eec6a01029ca6697dff4ec8f"
 uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
-version = "0.7.61"
+version = "0.7.23"
 
 [[deps.PoissonRandom]]
 deps = ["Random"]
@@ -2874,22 +2772,18 @@ version = "1.4.1+2"
 """
 
 # ╔═╡ Cell order:
-# ╠═9a17a4a0-7a92-11f0-2c7b-395368036590
-# ╠═ef49cb3d-fd66-4c26-95ea-afa5a57ba127
-# ╟─ef488206-8a02-4683-9792-a6ff7349fe40
-# ╠═4151ca8c-48a0-46f4-8b15-db3e8e6816f2
-# ╠═19f9713c-9505-4dcb-b58d-d5b5615b504b
-# ╠═4ff53943-6187-4138-b91b-3640717a1dc7
-# ╟─596ecc88-6172-4859-b0f9-f0c5e6117edb
-# ╠═0396c638-49a8-4975-9fb0-a64b11860388
-# ╠═5326e8ad-2be4-450c-84f0-803c8b6802cc
-# ╟─e542cede-c892-4224-986e-aa0d5c42ee76
-# ╠═577ae42d-2871-44d4-bd60-d674fdb694fb
-# ╠═a7cd4e01-1b1e-454c-afe2-e940431e0505
-# ╠═2888d78e-e021-4789-87da-07be5027a487
-# ╟─3f9c3a67-6b03-4a2b-912b-857a28d68b28
-# ╠═bee70811-328a-4196-8c89-7cc81a8ab562
-# ╠═ae02dd6a-0396-46a5-a240-c5949c944047
-# ╠═9228c34e-09d5-494d-b91c-7e6311e3d5aa
+# ╠═76970efe-7c29-11f0-0c13-710a6095a5e1
+# ╠═9cd0d750-738a-49d7-a3b4-b62eb421d036
+# ╠═48f9c201-840d-4671-b743-affcbd013b05
+# ╠═2b14fae7-76b0-42bf-bcb6-be70fb42acaa
+# ╠═1d5d0ccd-14c5-4ec2-a41b-adc71cb84993
+# ╠═ad7eef36-f195-4aea-bd12-3cb6f5d135ca
+# ╠═04bd578a-3bcd-4206-9fde-6a29284232af
+# ╠═7824e0de-b205-4198-9116-961ae851dfd7
+# ╟─52332c49-e99a-4438-9044-f59aaf4ea249
+# ╠═aff6c615-316d-4f5c-b3d3-24844f93e419
+# ╠═b5fda7f1-8a2b-4735-8f0e-d46ed49db153
+# ╠═b0404d61-6bc2-4bdd-90e6-2a2b26c07298
+# ╟─9dbf8b60-211d-40cb-acee-178f47ab2a2e
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
