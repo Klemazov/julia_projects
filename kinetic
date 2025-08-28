@@ -57,6 +57,31 @@ function nth_order(u,p,t)
 	A*exp(-Eₐ/(R*10*T))*(1-u)^n
 end
 
+# ╔═╡ 9dbf8b60-211d-40cb-acee-178f47ab2a2e
+md"""
+A = $(@bind A Slider(1:0.1:30; default=1, show_value=true))
+
+Ea = $(@bind Eₐ Slider(1:0.1:200; default=1, show_value=true))
+
+n = $(@bind n Slider(1:0.1:10; default=1, show_value=true))
+
+m = $(@bind m Slider(1:0.1:10; default=1, show_value=true))
+
+K = $(@bind K Slider(0.1:0.1:10; default=1, show_value=true))
+"""
+
+# ╔═╡ 04bd578a-3bcd-4206-9fde-6a29284232af
+begin
+	u0 = 1e-3;
+	tspan = (0.0 , 1.0);
+	p = [A, Eₐ,n];
+	prob = ODEProblem(nth_order, u0, tspan, p);
+	sol_nth = solve(prob);
+end
+
+# ╔═╡ 7824e0de-b205-4198-9116-961ae851dfd7
+plot(sol_nth, ylims = (0,1))
+
 # ╔═╡ 52332c49-e99a-4438-9044-f59aaf4ea249
 md"""
 ## Пример с автокатализом
@@ -74,25 +99,6 @@ function prout_tompkins(u,p,t)
 	A*exp(-Eₐ/(R*10*T))*(1-u)*u
 end
 
-# ╔═╡ 9dbf8b60-211d-40cb-acee-178f47ab2a2e
-md"""
-A = $(@bind A Slider(1:0.1:30; default=1, show_value=true))
-Ea = $(@bind Eₐ Slider(1:0.1:200; default=1, show_value=true))
-n = $(@bind n Slider(1:0.1:10; default=1, show_value=true))
-"""
-
-# ╔═╡ 04bd578a-3bcd-4206-9fde-6a29284232af
-begin
-	u0 = 1e-3;
-	tspan = (0.0 , 10.0);
-	p = [A, Eₐ,n];
-	prob = ODEProblem(nth_order, u0, tspan, p);
-	sol_nth = solve(prob);
-end
-
-# ╔═╡ 7824e0de-b205-4198-9116-961ae851dfd7
-plot(sol_nth, ylims = (0,1))
-
 # ╔═╡ b5fda7f1-8a2b-4735-8f0e-d46ed49db153
 begin
 	prob_pt = ODEProblem(prout_tompkins, u0, tspan, p);
@@ -101,8 +107,36 @@ end
 
 # ╔═╡ b0404d61-6bc2-4bdd-90e6-2a2b26c07298
 begin
-plot(sol_nth, ylims = (0,1), label = "n-th")
-plot!(sol_pt, ylims = (0,1), label = "pt")
+plot(sol_nth, ylims = (0,1), label = "реакция n-ного порядка")
+plot!(sol_pt, ylims = (0,1), label = "Автокатализ (Праут Томпкинс)")
+end
+
+# ╔═╡ f6501ac3-e4d1-4eb8-9906-341f9b56ec0d
+md"""
+ ### комбинированная реакция автокатализатора Kama-Sourour
+$f(\alpha) = (1-\alpha)^n \cdot(1+K_{cat}\cdot a^m)$
+"""
+
+# ╔═╡ 57bd99c7-b67f-40e0-8653-5ee0abdcda79
+function kama_sourour(u,p,t)
+A,Eₐ,K,n,m = p;
+R = 8.31;
+T = t;
+A*exp(-Eₐ/(R*10*T))*(1-u)^n*(1+K*u^m)
+end
+
+# ╔═╡ c6620b1c-87d3-4fce-9379-d5686ba4c9c6
+begin
+	p_ks = [A, Eₐ,K,n,m];
+	prob_ks = ODEProblem(kama_sourour, u0, tspan, p_ks);
+	sol_ks = solve(prob_ks);
+end
+
+# ╔═╡ ad0a2671-90dc-4f5a-9220-f237eb381a5f
+begin
+plot(sol_nth, ylims = (0,1), label = "реакция n-ного порядка")
+plot!(sol_pt, ylims = (0,1), label = "Автокатализ (Праут Томпкинс)")
+plot!(sol_ks, ylims = (0,1), label = "Автокатализ (Kama-Sourour)")
 end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
@@ -2780,10 +2814,14 @@ version = "1.4.1+2"
 # ╠═ad7eef36-f195-4aea-bd12-3cb6f5d135ca
 # ╠═04bd578a-3bcd-4206-9fde-6a29284232af
 # ╠═7824e0de-b205-4198-9116-961ae851dfd7
+# ╟─9dbf8b60-211d-40cb-acee-178f47ab2a2e
 # ╟─52332c49-e99a-4438-9044-f59aaf4ea249
 # ╠═aff6c615-316d-4f5c-b3d3-24844f93e419
 # ╠═b5fda7f1-8a2b-4735-8f0e-d46ed49db153
 # ╠═b0404d61-6bc2-4bdd-90e6-2a2b26c07298
-# ╟─9dbf8b60-211d-40cb-acee-178f47ab2a2e
+# ╠═f6501ac3-e4d1-4eb8-9906-341f9b56ec0d
+# ╠═57bd99c7-b67f-40e0-8653-5ee0abdcda79
+# ╠═c6620b1c-87d3-4fce-9379-d5686ba4c9c6
+# ╟─ad0a2671-90dc-4f5a-9220-f237eb381a5f
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
