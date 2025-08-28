@@ -1,5 +1,5 @@
 module kinetic_base
-export R, K, F1
+export R, K, F1, Fn, B1, Bna,C1, Cn, Cnm
 
 const R = 8.314;
 
@@ -9,7 +9,7 @@ K(A::Number,Eₐ::Number,T::Number) = A*exp(-Eₐ/(R*T));
 
 
 # for solving via diff equations
-F1(α) = 1- α; #first order
+F1(α) = @. 1- α; #first order
 
 F2(α) = (1- α)^2; #second order
 
