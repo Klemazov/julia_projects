@@ -10,18 +10,18 @@ K(A,Eₐ,T) = A*exp(-Eₐ/(R*T));
 # SIMPLE ORDER EQUATIONS
 
 "first order equation F1(α) = 1 - α"
-function  F1(α::T) where {T} 
-@. (one(eltype(α)) - α);
+function  F1(α)  
+    1.0 - α;
 end
 
 "second order equation F2(α) = (1 - α)^2"
-function  F2(α::T) where {T}  
-@. (one(eltype(α)) - α)^2;
+function  F2(α)
+    (1.0 - α)^2
 end
 
 "n-th order equation Fn(α,n) = (1 - α)^n"
-function  Fn(α::T, n) where {T} 
-@. (one(eltype(α)) - α)^n;
+function  Fn(α, n)
+    (1.0 - α)^n
 end
 
 
@@ -29,32 +29,32 @@ end
 # PROUT-TOMPKINS EQUATIONS
 
 "Prout-Tompkins equation B1(α) = (1-α)⋅α"
-function  B1(α::T) where {T} 
-@. (one(eltype(α)) - α)*α;
+function  B1(α)
+    (1.0-α)⋅α
 end
 
 
 "Extended Prout-Tompkins equation Bnm(α,n,m) = (1-α)ⁿ ⋅ αᵐ"
-function  B1(α::T,n,m) where {T} 
-@. (one(eltype(α)) - α)^n*α^m;
+function  B1(α,n,m)
+    (1.0 - α)^n*α^m;
 end
 
 
 #AUTOCATALYS EQUATIONS
 
 "Kama-Sourour auto-catalysis reaction n = 1, m = 1  C1(α) = F1(α)⋅(1+Kcat⋅α)"
-function C1(α::T, Kcat) where T
-    @. F1(α)*(one(eltype(α)+Kcat*α))
+function C1(α, Kcat)
+    F1(α)*(1.0+Kcat*α)
 end
 
 "Kama-Sourour auto-catalysis reaction m = 1 Cn(α) = Fn(α)⋅(1+Kcat⋅α)"
-function Cn(α::T, n, Kcat) where T
-    @. Fn(α,n)*(one(eltype(α)+Kcat*α))
+function Cn(α, n, Kcat)
+    Fn(α,n)*(1.0+Kcat*α)
 end
 
 "Kama-Sourour auto-catalysis reaction Cnm(α) = Fn(α)⋅(1+Kcat⋅α^m)"
-function Cnm(α::T, n, m, Kcat) where T
-    @. Fn(α,n)*(one(eltype(α)+Kcat*α^m))
+function Cnm(α, n, m, Kcat) 
+    @. Fn(α,n)*(1.0+Kcat*α^m)
 end
 
 
